@@ -1,6 +1,7 @@
 import time
 import sense_hat
 import numpy as np
+import sys
 from random import randint
 
 sense = sense_hat.SenseHat()
@@ -11,6 +12,7 @@ left_key = sense_hat.DIRECTION_LEFT
 right_key = sense_hat.DIRECTION_RIGHT
 up_key = sense_hat.DIRECTION_UP
 down_key = sense_hat.DIRECTION_DOWN
+middle_key = sense_hat.DIRECTION_MIDDLE
 pressed = sense_hat.ACTION_PRESSED
 released = sense_hat.ACTION_RELEASED
 
@@ -20,11 +22,18 @@ playfieldSize = 10
 #speed of game
 gameSpeed = 0.5
 
+#variables that need to be declared before main game loop
+lft = 0.0
+timeCounter = 0.0
+score = 0
+interval = gameSpeed
+gameOver = False
+
 playfield = np.zeros((playfieldSize,playfieldSize))
 
 #creating borders outside of LED matrix
 for i in range(0,playfieldSize):
-    playfield[i][0] = 1
+    #playfield[i][0] = 1
     playfield[i][playfieldSize-1] = 1
     playfield[0][i] = 1
     playfield[playfieldSize-1][i] = 1
@@ -40,7 +49,7 @@ blockData = np.array([
     [0x38, 0x92, 0x38, 0x92], #I
     [0x3A, 0xB2, 0xB8, 0x9A], #T
     [0xD8, 0xD8, 0xD8, 0xD8], #O
-    [0x98, 0x1A, 0x32, 0xB0] #small L
+    [0x98, 0xD0, 0xC8, 0x58]  #L
     ])
 
 #colors for corresponding block types
@@ -52,6 +61,19 @@ blockColors = {
     4 : (0,255,255)
 }
 
+w=[150,150,150]
+e=[0,0,0]
+
+arrow=[e,e,e,w,w,e,e,e,
+e,e,w,w,w,w,e,e,
+e,w,e,w,w,e,w,e,
+w,e,e,w,w,e,e,w,
+e,e,e,w,w,e,e,e,
+e,e,e,w,w,e,e,e,
+e,e,e,w,w,e,e,e,
+e,e,e,w,w,e,e,e]
+
+
 activeBlock_x = None
 activeBlock_y = None
 activeBlock_type = None
@@ -59,8 +81,8 @@ activeBlock_dir = None
 
 def generateBlock():
     global activeBlock_x, activeBlock_y, activeBlock_type, activeBlock_dir
-    activeBlock_x = 2
-    activeBlock_y = 4
+    activeBlock_x = 1
+    activeBlock_y = 5
     activeBlock_type = randint(0,blockData.shape[0]-1)
     activeBlock_dir = randint(0,3)
 
@@ -71,7 +93,8 @@ def drawActiveBlock():
         for j in range(activeBlock_x -1, activeBlock_x + 2):
             #print(i,j)
             if(blockData[activeBlock_type][activeBlock_dir] & 1 << ((k * 3) - m)):
-                sense.set_pixel(i-1, j-1, blockColors[activeBlock_type + 1])
+                if(j - 1 >= 0):
+                    sense.set_pixel(i-1, j-1, blockColors[activeBlock_type + 1])
             m = m + 1
         k = k - 1
 
@@ -122,11 +145,16 @@ def checkForLine():
         i -= 1
     return lineCount
 
-#variables that need to be declared before loop starts
-lft = 0.0
-timeCounter = 0.0
-score = 0
-interval = gameSpeed
+def clearPlayground():
+    for i in range(1,9):
+        for j in range(1,9):
+            playfield[i][j] = 0
+
+def restartGame():
+    global score
+    clearPlayground()
+    score = 0
+    generateBlock()
 
 # generate first block, no need to check for collision at start
 generateBlock()
@@ -167,34 +195,52 @@ while True:
             if e.direction == down_key and e.action == released:
                 interval = gameSpeed
 
+            if e.direction == up_key and e.action == pressed and gameOver:
+                restartGame()
+                gameOver = False
+
+            if e.direction == down_key and e.action == pressed and gameOver:
+                sense.clear()
+                sys.exit()
+
     if(timeCounter > interval):
-        timeCounter = 0 
-        if not checkCollision(1,0):
-            activeBlock_x += 1
+        timeCounter = 0
+        if not gameOver:
+            if not checkCollision(1,0):
+                activeBlock_x += 1
+            else:
+                lockBlock()
+                linesDestroyed = checkForLine()
+                if linesDestroyed == 1:
+                    score += 4
+                elif linesDestroyed == 2:
+                    score += 10
+                elif linesDestroyed == 3:
+                    score += 30
+                generateBlock()
+                if checkCollision(0,0):
+                    for k in range (0, 2):
+                        sense.clear(255,0,0)
+                        time.sleep(0.2)
+                        sense.clear(255,255,255)
+                        time.sleep(0.2)
+                    sense.show_message("GAME OVER", scroll_speed=0.04)
+                    msg = str(score) + " pts!"
+                    sense.show_message(msg, scroll_speed=0.07)
+                    clearPlayground();
+                    gameOver = True 
+            drawPlayfield()
+            drawActiveBlock()
         else:
-            lockBlock()
-            linesDestroyed = checkForLine()
-            if linesDestroyed == 1:
-                score += 4
-            elif linesDestroyed == 2:
-                score += 10
-            elif linesDestroyed == 3:
-                score += 30
-            generateBlock()
-            if checkCollision(0,0):
-                print("Game Over")
-                for k in range (0, 2):
-                    sense.clear(255,0,0)
-                    time.sleep(0.2)
-                    sense.clear(255,255,255)
-                    time.sleep(0.2)
-                break
+            sense.set_pixels(arrow)
+
+
+
+
+            
+    
+                    
         
-        drawPlayfield()
-        drawActiveBlock()   
+        
 
 
-
-sense.show_message("GAME OVER", scroll_speed=0.05)
-msg = "Your score is " + str(score) + " pts!"
-sense.show_message(msg, scroll_speed=0.05)
