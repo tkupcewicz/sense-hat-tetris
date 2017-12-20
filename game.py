@@ -156,6 +156,24 @@ def restartGame():
     score = 0
     generateBlock()
 
+def moveBlock(pitch, roll):
+	if 1 < pitch < 179:
+		if not checkCollision(0,-1):
+			activeBlock_y -= 1
+	elif 181 < pitch < 359:
+		if not checkCollision(-1, 0):
+			activeBlock_y += 1
+	if 1 < roll < 179:
+        tmpDir = activeBlock_dir
+        activeBlock_dir = (activeBlock_dir + 1) % 4
+        if checkCollision(0,0):
+            activeBlock_dir = tmpDir
+    # elif 181 < roll < 359:
+    	
+
+
+
+
 # generate first block, no need to check for collision at start
 generateBlock()
 
@@ -167,33 +185,38 @@ while True:
     lft = ct
     timeCounter += dt
     
+    o.sense.get_orientation()
+    pitch = o["pitch"]
+    roll = o["roll"]
+    moveBlock(pitch, roll)
+
     events = sense.stick.get_events()
     if events:
         for e in events:
-            #   Moving a block left
-            if e.direction == left_key and e.action == pressed:
-                if not checkCollision(0,-1):
-                    activeBlock_y -= 1
+            # #   Moving a block left
+            # if e.direction == left_key and e.action == pressed:
+            #     if not checkCollision(0,-1):
+            #         activeBlock_y -= 1
 
-            #   Moving a block right
-            if e.direction == right_key and e.action == pressed:
-                if not checkCollision(0,1):
-                    activeBlock_y += 1
+            # #   Moving a block right
+            # if e.direction == right_key and e.action == pressed:
+            #     if not checkCollision(0,1):
+            #         activeBlock_y += 1
 
-            #   Rotating a block
-            if e.direction == up_key and e.action == pressed:
-                tmpDir = activeBlock_dir
-                activeBlock_dir = (activeBlock_dir + 1) % 4
-                if checkCollision(0,0):
-                    activeBlock_dir = tmpDir
+            # #   Rotating a block
+            # if e.direction == up_key and e.action == pressed:
+            #     tmpDir = activeBlock_dir
+            #     activeBlock_dir = (activeBlock_dir + 1) % 4
+            #     if checkCollision(0,0):
+            #         activeBlock_dir = tmpDir
 
-            #   Speeding up a block
-            if e.direction == down_key and e.action == pressed:
-                interval = gameSpeed/5
+            # #   Speeding up a block
+            # if e.direction == down_key and e.action == pressed:
+            #     interval = gameSpeed/5
             
-            #   Resetting back to normal speed
-            if e.direction == down_key and e.action == released:
-                interval = gameSpeed
+            # #   Resetting back to normal speed
+            # if e.direction == down_key and e.action == released:
+            #     interval = gameSpeed
 
             if e.direction == up_key and e.action == pressed and gameOver:
                 restartGame()
@@ -202,6 +225,8 @@ while True:
             if e.direction == down_key and e.action == pressed and gameOver:
                 sense.clear()
                 sys.exit()
+
+
 
     if(timeCounter > interval):
         timeCounter = 0
